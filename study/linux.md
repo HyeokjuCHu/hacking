@@ -154,3 +154,45 @@ alias ll='ls -alF'
 alias gs='git status'
 ```
 
+---
+
+# 🛠️ 해킹 관련 리눅스 기초 개념
+
+## 👤 사용자(User)와 그룹(Group)
+
+- **사용자(User)**: 시스템에 로그인할 수 있는 개별 계정 (ex: root, hyeokju)
+- **그룹(Group)**: 사용자들을 묶는 단위. 파일 권한을 그룹 단위로 부여할 수 있음.
+
+사용자/그룹 관련 명령어:
+```bash
+whoami        # 현재 사용자 확인
+id            # UID, GID, 그룹 확인
+cat /etc/passwd  # 전체 사용자 정보 확인
+cat /etc/group   # 전체 그룹 정보 확인
+```
+
+---
+
+## 📁 주요 사용자/인증 관련 파일
+
+| 파일 경로 | 설명 |
+|-----------|------|
+| `/etc/passwd` | 사용자 계정 정보 (로그인 ID, UID, GID, 홈디렉토리, 기본 쉘 등) |
+| `/etc/shadow` | 실제 암호화된 비밀번호가 저장된 파일 (읽기 제한) |
+| `/etc/group` | 시스템의 그룹 정보 저장 |
+| `/etc/sudoers` | sudo 권한 설정 파일 (visudo로 편집 권장) |
+
+비밀번호는 `/etc/passwd`가 아닌 `/etc/shadow`에 해시 형태로 저장되어 있으며, root 또는 sudo 권한만 읽을 수 있음.
+
+## 예시 보기
+```bash
+cat /etc/passwd | head -n 5
+cat /etc/shadow | sudo head -n 5
+cat /etc/sudoers  # -> sudo visudo 명령어로 편집 권장
+```
+
+## 💡 해커 관점에서 유의할 점
+- `/etc/passwd`는 일반 사용자도 읽을 수 있어 사용자 목록 파악에 활용됨
+- `/etc/shadow`는 해시된 암호가 저장되어 있어 탈취 후 크랙 시도 가능
+- 권한 상승 기법 중 하나가 sudo misconfig 또는 setuid 바이너리 악용
+
