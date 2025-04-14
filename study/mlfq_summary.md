@@ -1,44 +1,63 @@
-# 💻 운영체제 스케줄링 요약 (Round-Robin ~ MLFQ)
+# 💻 운영체제 스케줄링 & IPC 통합 정리 (혁주님)
 _정리 날짜: 2025-04-14_
 
-## ✅ Round-Robin의 동작 방식
-- 프로세스마다 고정된 time quantum 동안만 CPU를 사용
-- time quantum이 지나면 다음 프로세스로 교체
-- Circular Queue를 사용해 공평하게 돌아가면서 실행
-- 남은 시간이 있으면 다시 큐 뒤로 보내져서 계속 실행
-- 너무 작으면 context switch 오버헤드 많아짐
-- 너무 크면 FCFS처럼 됨 (반응성 ↓)
+## 📦 IPC (Inter-Process Communication)
+- 단방향 파이프: 한 쪽은 write, 다른 한 쪽은 read만 가능
+- 양방향 통신은 파이프 두 개 필요 (ex: 부모→자식, 자식→부모)
+- named pipe는 파일처럼 동작하며 양쪽에서 읽고 쓸 수 있음
+- fork 이후 파이프는 복사되므로 양쪽에서 FD 조작 가능
+- write는 파이프에 데이터를 쓰고, read는 그 데이터를 읽음 (버퍼 기반 통신)
+- 부모가 write하면 자식이 read로 consume, 그 반대도 가능
 
-## ✅ SJF와 Priority Scheduling
-- SJF (Shortest Job First)는 평균 waiting time을 최소화 → 가장 효율적
-- 하지만 다음 CPU burst 시간을 정확히 예측해야 하므로 실제 사용은 어려움
-- Starvation(기아 현상) 발생 가능성 있음
-- Priority Scheduling도 같은 단점 존재 → 낮은 priority는 계속 밀릴 수 있음
-- Aging 기법을 통해 오래 기다리면 priority를 점점 높여서 starvation을 해결 가능
+## 🧠 Shared Memory
+- pipe는 '터널' 같은 직접 연결 구조, shared memory는 '휴게소'처럼 모두가 접근 가능한 메모리
+- 성능은 좋지만 동기화 문제 있음 (mutex, semaphore 등 필요)
+- shm_open, mmap 등으로 메모리 공유 가능
+- 사용 후 shm_unlink로 제거 (자동 제거 실패 시 수동 처리)
 
-## ✅ Multilevel Queue Scheduling (MLQ)
-- 프로세스를 여러 큐로 나눔 (real-time, system, interactive 등)
-- 각 큐는 고정된 우선순위 → 상위 큐가 비지 않으면 하위 큐는 CPU 못 씀
-- 큐 간 이동 없음 → 유연성 부족, Starvation 위험 높음
-- 각 큐는 서로 다른 알고리즘 사용 가능 (RR, FCFS 등)
+## ⚙️ 프로세스 상태 전이 및 PCB
+- Ready → Running → Waiting/Terminated 등 상태 전이
+- Ready Queue = 실행 준비된 프로세스 대기 줄 (Priority Queue 구조도 가능)
+- PCB(Process Control Block): 프로세스 정보를 저장하는 자료구조
+- dispatch latency: context switch 시 필요한 시간 → 작을수록 빠르지만 too frequent switches는 오히려 비효율
 
-## ✅ MLFQ (Multi-Level Feedback Queue)
-- MLQ의 단점을 해결하기 위해 큐 간 이동 허용
-- 새 프로세스는 항상 최상위 큐(Q0)에서 시작
-- CPU 사용 시간 많아지면 점점 낮은 큐로 이동 (demotion)
-- 짧게 CPU 쓰거나 I/O 작업 많은 경우 높은 큐에 남음
-- 각 큐는 다른 time quantum과 알고리즘을 사용 (보통 Q0: RR 8ms, Q1: RR 16ms, Q2: FCFS)
-- 응답성, 공정성, 효율성을 동시에 잡기 위한 전략
+## 🧮 CPU Scheduling Algorithms 요약
+- FCFS: First Come First Served, 단순하지만 평균 대기시간 길어짐
+- SJF: Shortest Job First → 평균 waiting time 최소화. but 다음 burst time 예측 어려움
+- Priority Scheduling: 높은 우선순위 먼저. starvation 문제 있음
+- RR: Round-Robin → time quantum 기반 선점형 스케줄링. 공정성 good, 오버헤드 주의
 
-## ✅ 선점 여부와 시간 측정
-- 새 프로세스가 들어온다고 해서 모든 프로세스가 멈추는 건 아님
-- 선점은 새로운 프로세스가 더 높은 priority일 때 발생
-- 운영체제는 timer interrupt를 통해 프로세스가 실행되는 동안만 시간 누적
-- 시간 초과된 프로세스만 큐 강등 대상이 됨
+## 🔥 Round-Robin 심화
+- 각 프로세스는 time quantum만큼 실행됨
+- quantum 너무 작으면 context switch 오버헤드 많아짐
+- 너무 크면 반응성 떨어져서 FCFS처럼 동작함
+- 공정성은 있지만 효율성과 응답성 사이에서 밸런스 필요
 
-## ✅ MLFQ 시나리오 예제
-- A(5ms): Q0에서 바로 종료
-- B(20ms): Q0(8ms) → Q1(12ms) → 종료
-- C(40ms): Q0(8ms) → Q1(16ms) → Q2(16ms) → 종료
-- 실제 실행 시간에 따라 큐 이동이 결정되며, 대기 중인 프로세스는 시간 계산 X
+## 📊 SJF와 Priority Scheduling 심화
+- SJF는 이론상 효율성 최고. 평균 대기시간 최소
+- 문제는 burst time 예측 어려움 + starvation
+- Priority Scheduling도 동일 문제 존재
+- 해결책: Aging (기다린 만큼 우선순위 증가)
+
+## 🏗️ Multilevel Queue (MLQ)
+- 프로세스를 고정된 큐로 분리 (real-time, system, batch 등)
+- 각 큐는 독립적으로 운영되고 다른 스케줄링 사용 가능
+- Fixed-Priority 방식 → starvation 가능성 있음
+- Time-Slice 방식 → CPU 시간을 비율로 분배하여 공정성 확보
+- 단점: 큐 간 이동 불가 → 유연성 없음
+
+## 🚀 MLFQ (Multilevel Feedback Queue)
+- MLQ에 유연성 추가 → 큐 간 이동 허용
+- 새 프로세스는 항상 Q0부터 시작
+- 많이 실행되면 점점 아래로 내려가고, 짧게 쓰면 위에 유지됨
+- 높은 큐는 작은 time quantum + RR, 낮은 큐는 긴 time quantum or FCFS
+- Starvation 방지를 위한 aging 기법 내장
+- 실행 시간만 누적되어 큐 이동 판단 (대기 시간은 무관)
+- 선점 발생: 더 높은 priority 프로세스가 도착하면 현재 실행 프로세스 중단 가능
+
+## 🎬 MLFQ 예제 시뮬레이션
+- 프로세스 A(5ms): Q0에서 바로 종료
+- 프로세스 B(20ms): Q0(8ms) → Q1(12ms)
+- 프로세스 C(40ms): Q0(8ms) → Q1(16ms) → Q2(16ms)
+- 실행 시간 기준으로만 큐 이동 결정됨. 대기 중에는 시간 측정 X
 
