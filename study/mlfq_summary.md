@@ -1,4 +1,4 @@
-# 💻 운영체제 스케줄링 & IPC 통합 정리 (혁주님)
+# 💻 운영체제 스케줄링 & IPC 통합 정리 (혁주)
 _정리 날짜: 2025-04-14_
 
 ## 📦 IPC (Inter-Process Communication)
