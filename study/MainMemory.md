@@ -91,3 +91,89 @@
 > 그리고 실행 시 필요한 것만 불러오는 **동적 로딩/링킹** 덕분에  
 > 컴퓨터는 효율적이고 안전하게 여러 프로그램을 실행할 수 있다.
 
+# Main Memory: Contiguous Allocation to Fragmentation Remedies
+
+## 📦 Contiguous Memory Allocation
+- 메인 메모리는 OS와 사용자 프로세스를 모두 수용해야 함.
+  - 제한된 자원이므로 효율적 할당 필요
+- **Contiguous Allocation**은 초기 메모리 관리 방식 중 하나
+  - 하나의 프로세스는 하나의 연속된 메모리 블록에 배치됨
+- 보통 두 파티션으로 나뉨:
+  - OS: 메모리 상단 (high memory)
+  - 사용자 프로세스: 메모리 하단 (low memory)
+- 제한: 외부 단편화 발생, 연속된 공간이 없으면 프로세스 수용 불가
+
+---
+
+## 📐 Variable Partition
+- **가변 크기 파티션(Variable Partition)**: 프로세스 크기에 맞게 메모리를 유동적으로 나눔
+- 프로세스가 종료되면 그 자리는 **hole (빈 공간)**으로 남음
+- 인접한 hole끼리 합칠 수 있음 (hole merging)
+- OS는 다음 정보를 관리함:
+  - 어떤 공간이 이미 할당됐는지 (allocated partitions)
+  - 어떤 공간이 비어 있는지 (holes)
+
+### 🔧 단점: 외부 단편화 발생
+- 충분한 전체 메모리는 있지만, 조각나 있어서 큰 프로세스를 넣을 수 없음
+- 이를 **External Fragmentation**이라 함
+
+---
+
+## 📊 Dynamic Storage Allocation Strategies
+### 1. **First-fit**
+- 가장 먼저 조건에 맞는 hole에 배치
+- 빠르지만 앞쪽에 단편화가 많이 생길 수 있음
+
+### 2. **Best-fit**
+- 들어갈 수 있는 hole 중 가장 작은 것 선택
+- 공간은 절약되지만 탐색 시간이 오래 걸리고 너무 작은 조각이 남을 수 있음
+
+### 3. **Worst-fit**
+- 가장 큰 hole을 선택
+- 이론상 큰 leftover 공간이 남지만 실제로는 비효율적
+
+### 🔍 결론
+- 일반적으로 **First-fit** > **Best-fit** >> **Worst-fit**
+
+---
+
+## 💥 Fragmentation 종류
+
+### 🔷 External Fragmentation
+- 총 빈 공간은 충분하지만 **연속된 공간이 없어서** 할당 불가
+- 예: 10KB + 8KB + 20KB = 38KB가 있어도 30KB 프로세스를 못 넣는 경우
+- **50% Rule**: N개의 프로세스를 할당하면 약 0.5N 개의 hole이 생겨서 메모리 1/3이 낭비될 수 있음
+
+### 🔶 Internal Fragmentation
+- 할당된 메모리 블록 중 **일부가 사용되지 않는 낭비**
+- 주로 고정 블록 기반 시스템(Paging 등)에서 발생
+- 예: 요청 18,462 bytes, 할당 18,464 bytes → 2 bytes 낭비
+
+---
+
+## 🛠 Fragmentation 해결 방법
+
+### 1. **Compaction (압축)**
+- 프로세스들을 한쪽으로 몰아붙여 연속된 공간 확보
+- 주소 재배치가 필요하므로 비용이 크고 실행 중에만 가능 (동적 재배치 시스템 필요)
+
+### 2. **Paging / Segmentation**
+- 프로세스의 논리 주소 공간이 **물리적으로 연속되지 않아도 되도록 허용**
+-
+#### 📘 Paging:
+- 메모리와 프로세스를 일정한 크기의 **page/frame** 단위로 나눔
+- 논리 페이지를 물리 프레임으로 매핑함 (Page Table 사용)
+- 외부 단편화 없음, 내부 단편화는 일부 존재할 수 있음
+
+#### 📘 Segmentation:
+- 주소 공간을 의미 단위로 나눔 (코드, 스택, 데이터 등)
+- 논리적으로는 연속되지만, 물리적으로는 흩어져도 됨
+
+---
+
+## ✅ 요약
+- 초기에는 **Contiguous Allocation**으로 메모리 할당
+- 이후 **Variable Partition**으로 유연성 확보
+- 하지만 **외부 단편화** 문제 발생 → 해결 위해 **Compaction** 또는 **Paging/Segmentation** 사용
+- Paging은 고정 크기 블록, Segmentation은 의미 단위로 나눔
+
