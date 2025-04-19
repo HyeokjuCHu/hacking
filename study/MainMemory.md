@@ -251,3 +251,126 @@
 
 > 이 구조를 통해 현대 OS는 메모리를 효율적으로 사용하고, 중복을 줄이며, 성능과 보안을 모두 잡는다.
 
+# Paging부터 Shared Pages까지 정리
+
+## 1. Paging이란?
+- **Paging**: 가상 주소 공간을 고정된 크기의 블록(=Page)으로 나누고, 이를 물리 메모리의 고정된 블록(=Frame)에 매핑하는 메모리 관리 기법
+- **Logical Address (논리 주소)**: CPU가 생성하는 주소 → (Page number, Offset)으로 구성
+- **Physical Address (물리 주소)**: 실제 RAM에서의 주소
+- **MMU (Memory Management Unit)**: 논리 주소를 물리 주소로 매핑해주는 하드웨어 장치
+
+## 2. Page Table
+- 프로세스마다 자신만의 **Page Table**이 있음
+- 각 entry는 해당 Page가 어떤 Frame에 매핑되는지를 기록
+- Page Table Entry(PTE)는 다음과 같은 정보 포함:
+  - Frame number
+  - Valid/Invalid bit
+  - Protection bits (읽기/쓰기/실행 권한 등)
+
+## 3. Valid-Invalid Bit
+- **Valid bit**: 해당 page가 실제 사용 중 → 접근 가능
+- **Invalid bit**: 아직 메모리에 없거나, 접근해서는 안 되는 페이지
+- 초기에는 대부분 앞부분만 valid, 나머지는 invalid
+- invalid page에 접근 시 → Page Fault 발생 → OS 개입
+
+## 4. Protection Bits
+- 각 frame 혹은 PTE마다 접근 권한을 지정 가능
+- 예: Read-only, Read-Write, Execute-only 등
+- 잘못된 접근 시 H/W trap 발생 → 보호 기능
+
+## 5. Page Table 최적화 장치
+- **PTBR**: Page Table의 시작 주소 저장
+- **PTLR**: Page Table의 길이 (몇 개의 page를 쓰는지)
+- 대부분의 프로세스는 전체 주소 공간을 쓰지 않으므로 PTLR로 낭비 방지
+
+## 6. TLB (Translation Lookaside Buffer)
+- **TLB**: 자주 쓰는 Page Table entry를 저장하는 고속 캐시
+- 구조: (Page number, Frame number)의 key-value 쌍
+- TLB hit: 빠르게 frame 찾기 가능
+- TLB miss: Page Table 접근 → TLB에 insert
+- 성능 공식:
+  ```
+  EAT = hit_ratio x 1 access + miss_ratio x 2 accesses
+  ```
+- TLB는 entry 수 제한 있음 (보통 64~1024개)
+
+## 7. 왜 TLB를 무한정 크게 만들 수 없는가?
+- 커질수록 병렬 검색 성능이 떨어짐
+- 전력 소비, 발열, 회로 복잡도 증가
+- 대신 multi-level TLB, superpage 등 최적화 사용
+
+## 8. Page가 Invalid인 이유
+- 전체 논리 주소 공간은 넓지만, 실제 사용하는 page는 일부
+- 나머지는 invalid로 표시해서 보호하거나 지연 로딩
+- 예: 아직 접근하지 않은 힙/스택 공간 등
+
+## 9. Shared Pages
+- **Shared Code**: 여러 프로세스가 같은 읽기 전용(reentrant) 코드 페이지를 공유
+  - 예: libc, text editor, 컴파일러 등
+  - 조건: read-only + 같은 바이너리 파일
+- **Private Code/Data**: 각 프로세스만이 사용하는 고유한 코드/데이터 (heap, stack 등)
+
+## 10. Shared Pages 동작 방식
+- 프로세스는 각각 자신만의 Page Table을 가짐
+- 하지만 같은 코드(libc 등)의 page는 동일한 물리 메모리 frame을 가리키게 설정
+- OS는 파일 경로 + inode 정보 등을 기준으로 "같은 코드"인지 판단
+- 수정 후 다시 컴파일한 바이너리는 기존 것과 공유되지 않음 (내용 다름)
+
+## 11. Shared Pages 예시
+- 여러 프로세스가 libc1 ~ libc4를 사용하는 경우
+- 각자의 Page Table에는 같은 Frame 번호가 적혀 있음
+- 실제 물리 메모리에는 libc1 ~ libc4가 한 번만 로딩됨
+
+---
+
+## 12. Structure of the Page Table
+- 32bit 주소 공간에서 페이지 크기가 4KB인 경우, 총 2^20개의 페이지 필요 → Page Table에 100만 개의 entry 필요
+- 각 entry가 4 bytes일 경우 → Page Table 크기 = 4MB
+- 이 크기를 줄이기 위해 다음과 같은 방식 도입:
+  - Hierarchical Page Table
+  - Hashed Page Table
+  - Inverted Page Table
+
+## 13. Hierarchical Page Table
+- Page Table을 계층적으로 나눠서 관리 (ex. Two-level Paging)
+- 논리 주소 구조: `[p1 | p2 | d]`
+  - `p1`: outer page table index
+  - `p2`: inner page table index
+  - `d`: offset (페이지 내 위치)
+- 주소 변환:
+  1. p1로 outer table 접근 → inner table 주소 획득
+  2. p2로 inner table 접근 → frame number 획득
+  3. frame + d → physical address 완성
+
+## 14. Hierarchical Paging in 64-bit Systems
+- 64bit 주소공간 = 너무 커서 2단계로 부족
+- 예: page size = 4KB일 때 2^52개의 페이지 필요
+- 따라서 4단계 또는 5단계 계층 구조 사용 (ex. x86-64: PML4 → PDPT → Page Directory → Page Table)
+- 예시 주소: `[p1 | p2 | p3 | d]`
+  - p1: 32bit, p2: 10bit, p3: 10bit, d: 12bit → 총 64bit
+
+## 15. Hashed Page Table
+- 주로 64bit 이상의 시스템에서 사용
+- 페이지 번호(p)를 해시 함수에 넣어 해시 테이블에 매핑
+- 충돌을 고려해 연결 리스트 구조 사용
+- 각 entry 구성: `(virtual page number, frame number, pointer)`
+- 주소 변환:
+  1. p → hash function → index
+  2. index에서 연결 리스트 탐색
+  3. 일치하는 p 찾으면 frame 반환
+
+## 16. Inverted Page Table
+- 시스템 전체에 딱 하나의 Page Table 존재
+- 기존 방식과 반대로, **물리 프레임 중심으로 관리**
+- 각 entry는 실제 메모리 프레임 하나를 대표하며, 다음 정보 저장:
+  - (process id, virtual page number)
+- 논리 주소: (process id, page number, offset)
+- 주소 변환:
+  1. inverted table에서 (pid, page number) 검색
+  2. 찾으면 해당 프레임 index + offset → physical address 완성
+
+---
+
+> 이 구조들을 통해 OS는 메모리 낭비를 줄이고,  
+> 다양한 주소 공간 크기에 유연하게 대응할 수 있다.
+
